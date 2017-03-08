@@ -122,10 +122,14 @@ class RefExpDataset(Refexp):
           bbox = self.loadAnns(obj_id)[0]['bbox']
           image_bbox_pairs.append((image_id, bbox))
           processed_pairs.add(str((image_id, bbox)))
-
-    image_feature_extractor.extract_features_for_bboxes(self.image_root, image_infos, image_bbox_pairs,
-                                                        features_filename, feature_layer, pre_existing_file)
+    if pre_existing_file != None:
+      print "loading features for bboxes from %s" % pre_existing_file
+      features_filename = pre_existing_file
+      pre_existing_file = None
+    else:
+      image_feature_extractor.extract_features_for_bboxes(self.image_root, image_infos, image_bbox_pairs,features_filename, feature_layer, pre_existing_file)
     h5file = h5py.File(features_filename, 'r')
+    print "DEBUG> ", str((226817,[0,0,639,428])) in h5file
     self.image_features = h5file
     if 'imgs_with_errors' in h5file:
       self.imgs_with_errors = h5file['imgs_with_errors'][:]
@@ -175,7 +179,7 @@ class UNCRefExp(RefExpDataset):
 
 
 class BaselineSequenceGenerator(SequenceGenerator):
-  def __init__(self, experiment_paths, experiment_config, dataset, vocab=None, include_all_boxes=False):
+  def __init__(self, experiment_paths, experiment_config, dataset, vocab=None, include_all_boxes=False, pre_existing_file = None):
     SequenceGenerator.__init__(self)
     self.exp_name = experiment_config.exp_name
     self.batch_num_streams = experiment_config.train.batch_size
@@ -196,7 +200,8 @@ class BaselineSequenceGenerator(SequenceGenerator):
     if self.dataset.image_features is None:
       features_filename = "%s/COCO_region_features.h5" % experiment_paths.precomputed_image_features
       self.dataset.extract_image_object_features(features_filename, feature_layer='fc7',
-                                                 include_all_boxes=include_all_boxes)
+                                                 include_all_boxes=include_all_boxes,
+												 pre_existing_file=pre_existing_file)
 
     # Load vocab
     if vocab is not None:
@@ -328,9 +333,9 @@ class BaselineSequenceGenerator(SequenceGenerator):
 
 
 class MaxMarginSequenceGenerator(BaselineSequenceGenerator):
-  def __init__(self, experiment_paths, experiment_config, dataset, vocab=None):
+  def __init__(self, experiment_paths, experiment_config, dataset, vocab=None, pre_existing_file = None):
     BaselineSequenceGenerator.__init__(self, experiment_paths, experiment_config,
-                                       dataset, vocab=vocab, include_all_boxes=True)
+                                       dataset, vocab=vocab, include_all_boxes=True, pre_existing_file = pre_existing_file)
     self.neg_proposal_source = experiment_config.train.neg_proposal_source \
                                if hasattr(experiment_config, 'train') else 'gt'
     if hasattr(experiment_config, 'train') and hasattr(experiment_config.train, 'max_num_negatives'):
@@ -475,9 +480,9 @@ class MaxMarginSequenceGenerator(BaselineSequenceGenerator):
 
 
 class MILContextSequenceGenerator(BaselineSequenceGenerator):
-  def __init__(self, experiment_paths, experiment_config, dataset, vocab=None):
+  def __init__(self, experiment_paths, experiment_config, dataset, vocab=None, pre_existing_file = None):
     BaselineSequenceGenerator.__init__(self,experiment_paths, experiment_config, dataset,
-                                       vocab=vocab, include_all_boxes=True)
+                                       vocab=vocab, include_all_boxes=True, pre_existing_file = pre_existing_file)
     self.neg_proposal_source = experiment_config.train.neg_proposal_source \
                                if hasattr(experiment_config, 'train') else 'gt'
     if hasattr(experiment_config, 'train') and hasattr(experiment_config.train, 'max_num_context'):
@@ -647,7 +652,7 @@ class MILContextSequenceGenerator(BaselineSequenceGenerator):
     return out
 
 
-def process_dataset(experiment_paths, experiment_config):
+def process_dataset(experiment_paths, experiment_config, pre_existing_file = None):
   vocab = None
   split_names = ['train', 'val']
   if hasattr(experiment_config,'debug') and experiment_config.debug:
@@ -666,11 +671,11 @@ def process_dataset(experiment_paths, experiment_config):
 
     print "Processing dataset %s" % dataset.dataset_name
     if experiment_config.exp_name == 'baseline':
-      sg = BaselineSequenceGenerator(experiment_paths, experiment_config, dataset, vocab=vocab)
+      sg = BaselineSequenceGenerator(experiment_paths, experiment_config, dataset, vocab=vocab, pre_existing_file = pre_existing_file)
     elif experiment_config.exp_name.startswith('max_margin'):
-      sg = MaxMarginSequenceGenerator(experiment_paths, experiment_config, dataset, vocab=vocab)
+      sg = MaxMarginSequenceGenerator(experiment_paths, experiment_config, dataset, vocab=vocab, pre_existing_file = pre_existing_file)
     elif experiment_config.exp_name.startswith('mil_context'):
-      sg = MILContextSequenceGenerator(experiment_paths, experiment_config, dataset, vocab=vocab)
+      sg = MILContextSequenceGenerator(experiment_paths, experiment_config, dataset, vocab=vocab, pre_existing_file = pre_existing_file)
     else:
       raise StandardError("Unknown experiment name %s" % experiment_config.exp_name)
     output_dir = "%s/buffer_%d/%s_%s" % (experiment_paths.h5_data, experiment_config.train.batch_size,
@@ -693,7 +698,8 @@ if __name__ == "__main__":
   parser.add_argument('--coco_path', required=True, help='Path to MSCOCO dataset')
   parser.add_argument('--dataset', required=True, help='Name of the dataset. [Google_RefExp|UNC_RefExp]')
   parser.add_argument('--exp_name', required=True, help='Type of model. [baseline|max-margin|mil_context]')
+  parser.add_argument('--pre_existing_file', required=False, default = None, help='load bbox features from preexisting file')
   args = parser.parse_args()
   exp_paths = get_experiment_paths(args.coco_path)
   exp_config = get_experiment_config(exp_paths,args.dataset,args.exp_name,mode='train')
-  process_dataset(exp_paths, exp_config)
+  process_dataset(exp_paths, exp_config, args.pre_existing_file)

@@ -108,6 +108,7 @@ class ImageFeatureExtractor:
     img_bbox_pairs = remaining_img_bbox_pairs
 
     num_pairs = len(img_bbox_pairs)
+#    print "DEBUG> num_pairs : ", num_pairs, str((226817,[0,0,639,428])) in extracted_img_bbox_pairs
     if num_pairs>0:
       if not self.initialized: self.init()
       batch_indices = range(0,num_pairs,self.BATCH_SIZE) + [num_pairs]
@@ -163,5 +164,7 @@ class ImageFeatureExtractor:
       errors = h5file.create_dataset('imgs_with_errors',shape=imgs_with_errors.shape,dtype=imgs_with_errors.dtype)
       errors[:] = imgs_with_errors
     h5file.close()
+    sys.stdout.write('DONE extracting features!\n')
+#    print "DEBUG>", h5dataset[str((226817,[0,0,639,428]))].shape
 
 image_feature_extractor = ImageFeatureExtractor(image_net='vggnet')
