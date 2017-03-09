@@ -129,7 +129,7 @@ class RefExpDataset(Refexp):
     else:
       image_feature_extractor.extract_features_for_bboxes(self.image_root, image_infos, image_bbox_pairs,features_filename, feature_layer, pre_existing_file)
     h5file = h5py.File(features_filename, 'r')
-    print "DEBUG> ", str((226817,[0,0,639,428])) in h5file
+
     self.image_features = h5file
     if 'imgs_with_errors' in h5file:
       self.imgs_with_errors = h5file['imgs_with_errors'][:]
