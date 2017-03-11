@@ -68,10 +68,7 @@ def get_experiment_config(experiment_paths,dataset=None,exp_name=None,mode='trai
     config.test.iter = test_model_iteration_num[model_tag]
     config.test.lstm_net_file = './proto_files/%s/%s.%s.deploy.prototxt' % (config.dataset.lower(),
                                                                             config.dataset.lower(), config.exp_name)
-    config.test.lstm_model_file = '%s/%s_%s/%s.%s_iter_%d.caffemodel' % (experiment_paths.models,
-                                                                         config.dataset, model_tag,
-                                                                         config.dataset.lower(), model_tag,
-                                                                         config.test.iter)
+    config.test.lstm_model_file = '%s/%s_%s.caffemodel' % (experiment_paths.models,config.dataset, config.exp_name)
 
   return config
 
